@@ -33,6 +33,40 @@ commas::
 
     .. bibmissing:: myrefs.bib, morerefs.bib
 
+Directive ``bibmatching`` provides convenience to include all
+references matching a set of filters:
+
+    .. bibmatching:: example.bib
+        :style: demo
+        :filter:
+           author: \bTheGod\b
+           howpublished: \b(Talk|Poster)\b
+        :sort:
+
+should only list Talks and Posters from TheGod . Additional sugarings:
+
+- any key could be specified.  If empty, e.g.
+
+  :filter:
+   : God
+
+  then it should look through all the fields
+
+- if any (or all) letters in the field name is uppercased -- search will
+  be case-sensitive
+
+- if field name is prepended with '!' -- ignores the effect and only
+  non-matching entries would be considered, e.g.
+
+    .. bibmatching:: example.bib
+        :style: demo
+        :filter:
+           author: \bTheGod\b
+           !howpublished: \b(Talk|Poster)\b
+        :sort:
+
+  should complement publications from TheGod to previously included query.
+
 All heavy lifting done by a slighly modified version of the ``bibstuff``
 library, by Alan Isaac.
 
