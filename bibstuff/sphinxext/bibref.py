@@ -98,6 +98,31 @@ from sphinx.util.nodes import make_refnode
 
 from .. import bibfile, bibgrammar, bibstyles
 
+# Symbols to be used
+# TODO: figure out if it is possible to get them from sphinx API somehow
+LEVELS_SYMBOLS = '=-^".'
+
+# Dictionary to enhance section names in 'groupby' mode
+# Could be
+#  None -- just capitalize and suffix with 's' for plural
+#  single -- suffix with 's' for plural
+#  (single, plural)
+# If absent from this mapping -- left original, only capitalized. No assumptions on how
+# to obtain plural
+ENHANCED_SECTION_NAMES = {
+    'article': None,
+    'review':  "Review Article",
+    'inbook':  "Book Chapter",
+    'inproceedings': "Conference Proceeding",
+    'incollection': "Collection Chapter",
+    'thesis': ("Thesis", "Theses"),
+    'mastersthesis': ("Master Thesis", "Master Theses"),
+    'phdthesis': ("Ph.D. Thesis", "Ph.D. Theses"),
+    'misc': ("Miscelaneous", "Miscelaneous"),
+    'talk': "Talk",
+    'poster': "Poster"
+    }
+
 class CiteMaker(object):
     """ Class to make citations from bibliographies
 
@@ -266,6 +291,7 @@ class BibListedDirective(Directive):
         'style': directives.unchanged,
         'sort': directives.flag,
         'encoding': directives.encoding,
+        'groupby': directives.unchanged,
     }
 
     def _get_refs(self, cite_maker):
@@ -280,6 +306,21 @@ class BibListedDirective(Directive):
             if ref != '' and not ref.startswith('#'):
                 refs.append(ref)
         return refs
+
+    def _group_entries(self, entries, groupby=None):
+        """Given a list of BibEntries, group them according to the
+        "groupby"
+        """
+        if not groupby or not len(entries):
+            # nothing to group
+            return entries
+        group = groupby[0]
+        groups = sorted(list(set([e.get(group, '') for e in entries])))
+        #if len(groups) <= 1:
+        return [(g, self._group_entries(
+                        filter(lambda e: e.get(group, '') == g, entries),
+                        groupby=groupby[1:]))
+                for g in groups]
 
     def run(self):
         """ Extract references from directive content and insert citations
@@ -310,8 +351,58 @@ class BibListedDirective(Directive):
         cm = cite_maker.citation_manager
         if sort_flag:
             entries.sort(key=cm.sortkey)
-        cite_strs = [cm.format_citation(entry) for entry in entries]
-        cite_text = '\n'.join(cite_strs)
+
+        entries_groupped = self._group_entries(
+            entries,
+            groupby=[x.strip() for x in self.options.get('groupby', '').split(',')])
+
+        def get_enhanced_section_name(name, issingle=False):
+            """Use ENHANCED_SECTION_NAMES
+
+            TODO: see if it would be possible to specify single/plural ;)
+            for now -- all plural
+            """
+            single, plural = ENHANCED_SECTION_NAMES.get(name.lower(), None), None
+            if not single:
+                single = name.capitalize()
+            elif isinstance(single, tuple):
+                single, plural = single
+
+            if issingle:
+                return single
+            # plural
+            # check if it is not a number
+            try:
+                _ = float(single)
+                return single
+            except:
+                return plural if plural else single + "s"
+
+        def format_citations(section, entries, level):
+            # embed section header
+            section_name = get_enhanced_section_name(section)
+            out = "\n%s\n%s\n\n" % (section_name,
+                                  LEVELS_SYMBOLS[level]*len(section_name)) \
+                  if section else ''
+            if isinstance(entries, list):
+                if len(entries):
+                    if isinstance(entries[0], bibfile.BibEntry):
+                        # we are at the bottom
+                        cite_strs = [cm.format_citation(entry) for entry in entries]
+                        cite_text = '\n'.join(cite_strs)
+                    else:
+                        # we still have (sub)section items
+                        cite_text = '\n'.join(
+                            [ format_citations(subsection, subentries, level+1)
+                              for subsection, subentries in entries ])
+                else:
+                    cite_text = ''
+            else:
+                raise ValueError("Should not get here -- input must be a list")
+
+            return out + cite_text
+
+        cite_text = format_citations('', entries_groupped, 1)
         own_doc = self.state.document
         citations = rst2nodes(cite_text, own_doc.settings)
         # Make backrefs to references
