@@ -384,6 +384,12 @@ class BibFile( DispatchProcessor ):
 	def comment_entry( self, (tag,start,stop,subtags), buffer ):
 		"""Process the given production and it's children"""
 		the_type = getString(subtags[0], buffer)
+		if isinstance(buffer, unicode):
+			# function below can't tollerate unicode
+			buffer_unicode = buffer
+			import codecs
+			buffer = codecs.encode(buffer, 'ascii')
+			assert(buffer_unicode == buffer)
 		lineno = lines(0,start,buffer)+1
 		if  the_type.upper() != 'COMMENT' :
 			bibfile_logger.warning("Entry at line %d has comment syntax but entry_type is %s" % (lineno,the_type))
