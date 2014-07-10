@@ -118,7 +118,7 @@ ENHANCED_SECTION_NAMES = {
     'thesis': ("Thesis", "Theses"),
     'mastersthesis': ("Master Thesis", "Master Theses"),
     'phdthesis': ("Ph.D. Thesis", "Ph.D. Theses"),
-    'misc': ("Miscelaneous", "Miscelaneous"),
+    'misc': ("Miscellaneous", "Miscellaneous"),
     'talk': "Talk",
     'poster': "Poster"
     }
